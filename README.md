@@ -78,14 +78,14 @@ streamlit run app.py
 ## 📸 Screenshots
 
 ### Main Dashboard
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/e50852802c380ec18b4f00631c1d256a048fabd6/screenshots/dashboard_1.png)
+![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/6582610e36a05a0c4256a2fe290025b5ae696512/screenshots/dashboard_1.png)
 
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/e50852802c380ec18b4f00631c1d256a048fabd6/screenshots/dashboard_2.png)
+![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/6582610e36a05a0c4256a2fe290025b5ae696512/screenshots/dashboard_2.png)
 
 
 ### Detection Alert
 
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/0ae38493976868569b00361e9de0889a16cc87ef/screenshots/alert.png)
+![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/6582610e36a05a0c4256a2fe290025b5ae696512/screenshots/alert.png)
 
 ---
 
