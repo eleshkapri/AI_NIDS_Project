@@ -83,7 +83,7 @@ streamlit run app.py
 
 ### Detection Alert
 
-screenshots/alert.png
+https://github.com/eleshkapri/AI_NIDS_Project/blob/5f324a9f57853fb80f5d7592fd3a9d8bcab9c510/screenshots/alert.png
 
 ---
 
