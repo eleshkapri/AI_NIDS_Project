@@ -1,0 +1,10 @@
+# Ignore heavy environments
+venv/
+__pycache__/
+
+# Ignore large datasets (Speed up download)
+*.csv
+*.pcap
+
+# Ignore system files
+.DS_Store
