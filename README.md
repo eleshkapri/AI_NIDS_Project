@@ -43,4 +43,4 @@ scikit-learn
 ## 📸 Screenshots
 | Main Dashboard | Detection Alert |
 | :---: | :---: |
-| ![Dashboard](screenshots/dashboard_1.png, screenshots/dashboard_2.png) | ![Alert](screenshots/alert.png) |
+| ![Main View](screenshots/dashboard_1.png) <br> ![Correlation](screenshots/dashboard_2.png) | ![Alert](screenshots/alert.png) |
