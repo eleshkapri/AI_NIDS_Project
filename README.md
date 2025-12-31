@@ -10,7 +10,7 @@ An AI-powered dashboard that detects malicious network traffic using a **Random 
 This project relies on network traffic data (Wireshark logs or CIC-IDS2017). 
 I have hosted the dataset on Kaggle for easy access.
 
-👉 **[DOWNLOAD THE DATASET HERE] (https://kaggle.com/datasets/2f6c2a024a8423c27bf83f299cadc275ce3c9e032d80127a09c4b08cf8cf0442)**
+👉 **[DOWNLOAD THE DATASET HERE](https://kaggle.com/datasets/2f6c2a024a8423c27bf83f299cadc275ce3c9e032d80127a09c4b08cf8cf0442)**
 
 ### Setup Instructions:
 1. Download the dataset from the link above.
@@ -26,21 +26,3 @@ I have hosted the dataset on Kaggle for easy access.
 ```bash
 git clone [https://github.com/YOUR_GITHUB_USERNAME/AI_NIDS_Project.git](https://github.com/YOUR_GITHUB_USERNAME/AI_NIDS_Project.git)
 cd AI_NIDS_Project
-
----
-
-### 2. The `requirements.txt`
-To ensure others can run your code without errors, create (or update) a file named `requirements.txt` with these exact contents:
-
-```text
-streamlit
-pandas
-numpy
-seaborn
-matplotlib
-scikit-learn
-
-## 📸 Screenshots
-| Main Dashboard | Detection Alert |
-| :---: | :---: |
-| ![Main View](screenshots/dashboard_1.png) <br> ![Correlation](screenshots/dashboard_2.png) | ![Alert](screenshots/alert.png) |
