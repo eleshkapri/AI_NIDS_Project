@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import altair as alt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -13,41 +14,17 @@ except ImportError:
     st.stop()
 
 # --- PAGE SETUP ---
-st.set_page_config(page_title="AI-NIDS Project", layout="wide")
+st.set_page_config(page_title="AI-NIDS Project", layout="wide", page_icon="🛡️")
 
-# Custom CSS
+st.title("🛡️ AI-Based Network Intrusion Detection System")
 st.markdown("""
-<style>
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-    }
-    .success-box {
-        padding: 20px;
-        background-color: #1b4d3e;
-        color: white;
-        border-radius: 5px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .danger-box {
-        padding: 20px;
-        background-color: #4d1b1b;
-        color: white;
-        border-radius: 5px;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("AI-Based Network Intrusion Detection System")
+**Student Project**: This system uses **Random Forest** to detect Network attacks and **Groq AI** to generate defense rules.
+""")
 
 # --- CONFIGURATION ---
 DATASETS = {
-    "Demo Traffic (traffic_data.csv)": "traffic_data.csv",
-    "Real DDoS Data (Friday-WorkingHours...)": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv"
+    "Real DDoS Data (Friday-WorkingHours...)": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+    "Demo Traffic (traffic_data.csv)": "traffic_data.csv"
 }
 
 # --- SIDEBAR ---
@@ -65,27 +42,22 @@ st.sidebar.header("3. Model Training")
 @st.cache_data
 def load_data(filepath):
     try:
-        # Load data (limit rows for speed)
-        df = pd.read_csv(filepath, nrows=10000)
-        
-        # Clean Column Names
+        df = pd.read_csv(filepath, nrows=20000)
         df.columns = df.columns.str.strip()
         
-        # Normalize Target Column
+        # Handle Target Column
         if 'Label' in df.columns:
             df.rename(columns={'Label': 'Class'}, inplace=True)
         
-        # Auto-Fix if 'Class' is missing
+        # Auto-Fix if Class is missing
         if 'Class' not in df.columns:
             if 'Protocol' in df.columns:
                 df['Class'] = df['Protocol'].apply(lambda x: 'Normal' if x == 'TCP' else 'Suspicious')
             else:
                 df['Class'] = np.random.choice(['Normal', 'Suspicious'], size=len(df))
         
-        # Clean Infinite/Null values
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df.dropna(inplace=True)
-        
         return df
     except FileNotFoundError:
         st.error(f"File not found: {filepath}. Please ensure it is in the project folder.")
@@ -93,16 +65,24 @@ def load_data(filepath):
 
 df = load_data(current_file)
 
-# --- SESSION STATE ---
+# --- SESSION STATE (THE FIX IS HERE) ---
+# We ensure ALL variables exist before the app runs
 if 'model' not in st.session_state:
     st.session_state['model'] = None
 if 'accuracy' not in st.session_state:
     st.session_state['accuracy'] = 0.0
+if 'feature_names' not in st.session_state:
+    st.session_state['feature_names'] = []
+    
+# --- FIX: Initialize 'selected_packet' to prevent KeyError ---
 if 'selected_packet' not in st.session_state:
     st.session_state['selected_packet'] = None
-# Reset model if dataset changes
+# -------------------------------------------------------------
+
+# Reset if dataset changes
 if 'last_loaded_file' not in st.session_state or st.session_state['last_loaded_file'] != current_file:
     st.session_state['model'] = None
+    st.session_state['selected_packet'] = None # Reset packet too
     st.session_state['last_loaded_file'] = current_file
 
 # --- TRAIN MODEL SECTION ---
@@ -121,6 +101,7 @@ if df is not None:
             y = df['Class']
             
             X = pd.get_dummies(X)
+            st.session_state['feature_names'] = X.columns.tolist()
             
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
             
@@ -132,13 +113,49 @@ if df is not None:
             
             st.sidebar.success(f"Trained! Accuracy: {st.session_state['accuracy']*100:.2f}%")
 
-# --- THREAT ANALYSIS DASHBOARD ---
-st.divider()
-st.header("Threat Analysis Dashboard")
+# --- DASHBOARD ---
+if st.session_state['model'] is not None:
+    
+    # === CHARTS SECTION ===
+    st.divider()
+    st.header("📊 Network Insights")
+    
+    col_viz1, col_viz2 = st.columns(2)
+    
+    with col_viz1:
+        st.subheader("🥧 Attack Distribution")
+        dist_df = df['Class'].value_counts().reset_index()
+        dist_df.columns = ['Traffic Type', 'Count']
+        
+        pie = alt.Chart(dist_df).mark_arc(outerRadius=120).encode(
+            theta=alt.Theta("Count", stack=True),
+            color=alt.Color("Traffic Type"),
+            order=alt.Order("Count", sort="descending"),
+            tooltip=["Traffic Type", "Count"]
+        )
+        st.altair_chart(pie, use_container_width=True)
 
-if st.session_state['model'] is None:
-    st.warning(f"⚠️ Please train the model on '{selected_dataset_name}' using the sidebar button.")
-else:
+    with col_viz2:
+        st.subheader("📈 Feature Importance")
+        if st.session_state['feature_names']:
+            importances = st.session_state['model'].feature_importances_
+            indices = np.argsort(importances)[::-1][:5]
+            top_features = [st.session_state['feature_names'][i] for i in indices]
+            top_scores = importances[indices]
+            
+            feat_df = pd.DataFrame({'Feature': top_features, 'Importance': top_scores})
+            
+            bar = alt.Chart(feat_df).mark_bar(color='#ff4b4b').encode(
+                x='Importance',
+                y=alt.Y('Feature', sort='-x'),
+                tooltip=['Feature', 'Importance']
+            )
+            st.altair_chart(bar, use_container_width=True)
+
+    # === THREAT ANALYSIS INTERFACE ===
+    st.divider()
+    st.header("🛡️ Threat Analysis Dashboard")
+    
     col1, col2 = st.columns([2, 1])
 
     with col1:
@@ -152,15 +169,9 @@ else:
         if st.session_state['selected_packet'] is not None:
             packet = st.session_state['selected_packet']
             st.write("### Packet Info:")
-            
-            # Prepare vertical table
             display_df = packet.to_frame()
             display_df.columns = ["Value"]
-            
-            # --- THE FIX IS HERE ---
-            # Removed 'height=500'. It now auto-sizes to fit the data exactly.
-            st.dataframe(display_df, use_container_width=True)
-            # -----------------------
+            st.dataframe(display_df, use_container_width=True, height=400)
 
     with col2:
         st.subheader("AI Detection Result")
@@ -169,18 +180,25 @@ else:
             packet = st.session_state['selected_packet']
             ground_truth = str(packet.get('Class', 'Unknown'))
             
+            # Visual Status
             if ground_truth.upper() in ['NORMAL', 'BENIGN', 'SAFE']:
-                st.markdown(f"""<div class="success-box"><h3>STATUS: SAFE</h3></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="background-color:#1b4d3e;padding:20px;border-radius:5px;text-align:center;margin-bottom:20px;">
+                    <h3 style="color:white;margin:0;">✅ STATUS: SAFE</h3>
+                </div>""", unsafe_allow_html=True)
             else:
-                st.markdown(f"""<div class="danger-box"><h3>STATUS: ATTACK DETECTED</h3></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="background-color:#4d1b1b;padding:20px;border-radius:5px;text-align:center;margin-bottom:20px;">
+                    <h3 style="color:white;margin:0;">🚨 STATUS: ATTACK DETECTED</h3>
+                </div>""", unsafe_allow_html=True)
             
             st.caption(f"Ground Truth Label: {ground_truth}")
 
-            # --- GROQ AI SECTION ---
+            # --- GROQ AI ACTIVE RESPONSE ---
             st.divider()
-            st.subheader("Ask AI Analyst (Groq)")
+            st.subheader("🤖 Active Response (Groq)")
             
-            if st.button("Generate Explanation"):
+            if st.button("Generate Firewall Rule"):
                 if not groq_api_key:
                     st.error("Missing API Key in Sidebar")
                 else:
@@ -194,21 +212,26 @@ else:
                         clean_value = str(value).encode('ascii', 'ignore').decode('ascii')
                         clean_packet_str += f"{key}: {clean_value}, "
                     
-                    with st.spinner("Analyzing..."):
+                    with st.spinner("Generating Defense Strategy..."):
                         try:
                             chat = client.chat.completions.create(
                                 messages=[
                                     {
                                         "role": "system", 
-                                        "content": "You are a cybersecurity analyst. Explain if this packet is safe or suspicious based on the provided network features."
+                                        "content": "You are a Senior Security Engineer. Based on the packet data, generate a specific firewall rule (iptables or command line) to BLOCK this traffic."
                                     },
                                     {
                                         "role": "user", 
-                                        "content": f"Packet Data: {clean_packet_str}"
+                                        "content": f"Packet Data: {clean_packet_str}. \n\n1. Explain the threat briefly.\n2. Provide the exact command line to block the Source IP."
                                     }
                                 ],
                                 model="llama-3.3-70b-versatile"
                             )
-                            st.info(chat.choices[0].message.content)
+                            response = chat.choices[0].message.content
+                            st.info(response)
+                            
                         except Exception as e:
                             st.error(f"Error: {e}")
+
+elif df is not None:
+    st.warning(f"⚠️ Dataset Loaded. Please click 'Train Model Now' in the sidebar to start.")
