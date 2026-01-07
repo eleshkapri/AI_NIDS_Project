@@ -1,72 +1,73 @@
 # 🛡️ AI-Based Network Intrusion Detection System (AI-NIDS)
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-red)
-![Machine Learning](https://img.shields.io/badge/AI-Random%20Forest-green)
+![AI](https://img.shields.io/badge/AI-Groq%20Cloud-orange)
+![Sklearn](https://img.shields.io/badge/ML-Random%20Forest-green)
 
-An AI-powered dashboard that detects malicious network traffic using a **Random Forest Classifier**. This project can analyze live traffic logs or run in simulation mode.
+An advanced cybersecurity dashboard that detects network attacks (DDoS, Port Scans, etc.) using **Random Forest** and provides real-time explanations using **Generative AI (Groq Llama-3)**.
 
-## 📊 Dataset (Required)
-This project relies on network traffic data (Wireshark logs or CIC-IDS2017). 
-I have hosted the dataset on Kaggle for easy access.
+## 📊 Datasets (Required)
+This project supports two modes. You need at least one of these datasets in your root folder:
+
+1.  **Real Attack Data (Recommended):** `Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv` (From CICIDS2017).
+2.  **Demo/Custom Data:** `traffic_data.csv` (Your own Wireshark export).
 
 👉 **[DOWNLOAD THE DATASET HERE](https://kaggle.com/datasets/2f6c2a024a8423c27bf83f299cadc275ce3c9e032d80127a09c4b08cf8cf0442)**
 
-### Setup Instructions:
-1. Download the dataset from the link above.
-2. Unzip the file (if necessary).
-3. **Rename the file** to: `traffic_data.csv`
-4. Place it in the root folder of this project.
+---
+
+## 🚀 Features
+* **Dual Dataset Support:** Switch between "Real DDoS Data" and "Custom Wireshark Logs" instantly from the sidebar.
+* **Machine Learning:** Uses `RandomForestClassifier` to classify packets as **Safe (Benign)** or **Attack**.
+* **AI Analyst:** Integrated **Groq API** (Llama-3 model) to explain *why* a specific packet is suspicious in plain English.
+* **Threat Dashboard:** Simulates live traffic and displays packet details in a hacker-style vertical interface.
 
 ---
 
-## 🚀 How to Run Locally
+## 📂 Project Structure
+
+```text
+├── app.py                # Main application code (Streamlit + ML logic)
+├── traffic_data.csv      # Dataset 1: Custom Wireshark export
+├── Friday-Working...csv  # Dataset 2: Real DDoS Data (CICIDS2017)
+├── requirements.txt      # List of dependencies
+└── README.md             # Project documentation
+
+```
+
+---
+
+## 🛠️ How to Run Locally
 
 ### 1. Clone the Repository
+
 ```bash
 git clone [https://github.com/YOUR_GITHUB_USERNAME/AI_NIDS_Project.git](https://github.com/YOUR_GITHUB_USERNAME/AI_NIDS_Project.git)
 cd AI_NIDS_Project
 
 ```
 
-### 2. Create the Virtual Environment (venv)
-
-This isolates the project so it doesn't conflict with other Python apps.
-
-**Windows:**
+### 2. Create Virtual Environment
 
 ```bash
 python -m venv venv
 
 ```
 
-### 3. Activate the Environment
+### 3. Activate Environment
 
-You must do this every time you open the project.
-
-**Windows:**
-
-```bash
-.\venv\Scripts\activate
-
-```
-
-*(You will know it worked if you see `(venv)` at the start of your terminal line).*
+* **Windows:** `.\venv\Scripts\activate`
+* **Mac/Linux:** `source venv/bin/activate`
 
 ### 4. Install Dependencies
-
-This installs all required libraries (Streamlit, Pandas, etc.) and automatically handles caching.
 
 ```bash
 pip install -r requirements.txt
 
 ```
 
-> **Note:** The `__pycache__` folder will be created automatically by Python when you run this command. You do not need to install it manually.
-
-### 5. Start the Project
-
-Run the dashboard using Streamlit:
+### 5. Start the App
 
 ```bash
 streamlit run app.py
@@ -77,30 +78,22 @@ streamlit run app.py
 
 ## 📸 Screenshots
 
-### Main Dashboard
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/e50852802c380ec18b4f00631c1d256a048fabd6/screenshots/dashboard_1.png)
+### Dashboard (Real DDoS Data)
 
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/e50852802c380ec18b4f00631c1d256a048fabd6/screenshots/dashboard_2.png)
-
-
-### Detection Alert
-
-![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/0ae38493976868569b00361e9de0889a16cc87ef/screenshots/alert.png)
+### Dashboard (Demo Traffic)
 
 ---
 
-## 🛠️ Features
+## 🔑 AI Configuration
 
-* **Production Mode:** Automatically detects if `traffic_data.csv` is present.
-* **Smart Parsing:** Converts Wireshark exports to ML features automatically.
-* **Simulation Mode:** Generates synthetic traffic if no data is found.
-* **Interactive Interface:** Visualize traffic and test packet parameters.
+To use the "Ask AI Analyst" feature, you need a free API key from Groq:
+
+1. Go to [Groq Console](https://console.groq.com/keys).
+2. Create a free API Key.
+3. Paste the key (`gsk_...`) into the app sidebar when running.
 
 ---
 
-## 📂 Project Structure
+## ⚠️ Note
 
-* `app.py`: Main Streamlit dashboard.
-* `data_loader.py`: Data processing and Wireshark conversion.
-* `model_engine.py`: Random Forest training logic.
-* `requirements.txt`: Python dependencies.
+This project is for educational purposes. The "Demo Traffic" mode generates synthetic labels if ground truth is missing from the raw packet capture.

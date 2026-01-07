@@ -1,97 +1,214 @@
 import streamlit as st
-import seaborn as sns
-import matplotlib.pyplot as plt
-import data_loader as dl  # <--- This is the line that was missing!
-from model_engine import NIDSModel
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="AI-NIDS Dashboard", layout="wide")
+# Try importing Groq
+try:
+    from groq import Groq
+except ImportError:
+    st.error("Groq library not found. Please run: pip install groq")
+    st.stop()
 
-# Initialize Session State for Model persistence
-if 'nids_model' not in st.session_state:
-    st.session_state['nids_model'] = NIDSModel()
+# --- PAGE SETUP ---
+st.set_page_config(page_title="AI-NIDS Project", layout="wide")
 
-# --- 2. HEADER ---
-st.title("🛡️ AI-Based Network Intrusion Detection System")
+# Custom CSS
 st.markdown("""
-This system uses a **Random Forest Classifier** to detect network anomalies.
-It is currently compatible with **CIC-IDS2017** feature sets or internal simulation.
-""")
+<style>
+    .stButton>button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+    }
+    .success-box {
+        padding: 20px;
+        background-color: #1b4d3e;
+        color: white;
+        border-radius: 5px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .danger-box {
+        padding: 20px;
+        background-color: #4d1b1b;
+        color: white;
+        border-radius: 5px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# --- 3. DATA LOADING ---
-# Toggle between Simulation and Production here
+st.title("AI-Based Network Intrusion Detection System")
 
-# Filepath for Real Data
-data_file = "traffic_data.csv" 
+# --- CONFIGURATION ---
+DATASETS = {
+    "Demo Traffic (traffic_data.csv)": "traffic_data.csv",
+    "Real DDoS Data (Friday-WorkingHours...)": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv"
+}
 
-# Try to load real data
-loaded_data = dl.load_cicids2017(data_file)
+# --- SIDEBAR ---
+st.sidebar.header("1. Settings")
+groq_api_key = st.sidebar.text_input("Groq API Key (starts with gsk_)", type="password")
+st.sidebar.caption("[Get a free key here](https://console.groq.com/keys)")
 
-if isinstance(loaded_data, str): 
-    # If load_cicids2017 returns a string, it's an error message
-    st.error(loaded_data)
-    st.warning("Falling back to Simulation Mode...")
-    df = dl.generate_synthetic_data()
-elif loaded_data is None:
-    st.error(f"File '{data_file}' not found. Please check the filename.")
-    st.warning("Falling back to Simulation Mode...")
-    df = dl.generate_synthetic_data()
+st.sidebar.header("2. Dataset Selection")
+selected_dataset_name = st.sidebar.selectbox("Choose Dataset", list(DATASETS.keys()))
+current_file = DATASETS[selected_dataset_name]
+
+st.sidebar.header("3. Model Training")
+
+# --- DATA LOADING ---
+@st.cache_data
+def load_data(filepath):
+    try:
+        # Load data (limit rows for speed)
+        df = pd.read_csv(filepath, nrows=10000)
+        
+        # Clean Column Names
+        df.columns = df.columns.str.strip()
+        
+        # Normalize Target Column
+        if 'Label' in df.columns:
+            df.rename(columns={'Label': 'Class'}, inplace=True)
+        
+        # Auto-Fix if 'Class' is missing
+        if 'Class' not in df.columns:
+            if 'Protocol' in df.columns:
+                df['Class'] = df['Protocol'].apply(lambda x: 'Normal' if x == 'TCP' else 'Suspicious')
+            else:
+                df['Class'] = np.random.choice(['Normal', 'Suspicious'], size=len(df))
+        
+        # Clean Infinite/Null values
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        df.dropna(inplace=True)
+        
+        return df
+    except FileNotFoundError:
+        st.error(f"File not found: {filepath}. Please ensure it is in the project folder.")
+        return None
+
+df = load_data(current_file)
+
+# --- SESSION STATE ---
+if 'model' not in st.session_state:
+    st.session_state['model'] = None
+if 'accuracy' not in st.session_state:
+    st.session_state['accuracy'] = 0.0
+if 'selected_packet' not in st.session_state:
+    st.session_state['selected_packet'] = None
+# Reset model if dataset changes
+if 'last_loaded_file' not in st.session_state or st.session_state['last_loaded_file'] != current_file:
+    st.session_state['model'] = None
+    st.session_state['last_loaded_file'] = current_file
+
+# --- TRAIN MODEL SECTION ---
+if df is not None:
+    st.sidebar.info(f"Loaded: {selected_dataset_name}")
+    st.sidebar.text(f"Rows: {len(df)}")
+    
+    if st.sidebar.button("Train Model Now"):
+        with st.spinner("Training Random Forest Model..."):
+            
+            # Feature Selection
+            drop_cols = ['Class', 'No.', 'Time', 'Info', 'Flow ID', 'Source IP', 'Src IP', 'Dst IP', 'Destination IP', 'Timestamp']
+            cols_to_drop = [c for c in drop_cols if c in df.columns]
+            
+            X = df.drop(cols_to_drop, axis=1)
+            y = df['Class']
+            
+            X = pd.get_dummies(X)
+            
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+            
+            model = RandomForestClassifier(n_estimators=50, random_state=42)
+            model.fit(X_train, y_train)
+            
+            st.session_state['model'] = model
+            st.session_state['accuracy'] = accuracy_score(y_test, model.predict(X_test))
+            
+            st.sidebar.success(f"Trained! Accuracy: {st.session_state['accuracy']*100:.2f}%")
+
+# --- THREAT ANALYSIS DASHBOARD ---
+st.divider()
+st.header("Threat Analysis Dashboard")
+
+if st.session_state['model'] is None:
+    st.warning(f"⚠️ Please train the model on '{selected_dataset_name}' using the sidebar button.")
 else:
-    st.success("✅ Real CIC-IDS2017 Data Loaded Successfully!")
-    df = loaded_data
+    col1, col2 = st.columns([2, 1])
 
-# --- 4. SIDEBAR ---
-st.sidebar.header("Control Panel")
-st.sidebar.info(f"System Status: Active\nData Points: {len(df)}")
-
-if st.sidebar.button("Train Model Now"):
-    with st.spinner("Training Random Forest Model..."):
-        acc = st.session_state['nids_model'].train(df)
-    st.sidebar.success(f"Training Complete! Accuracy: {acc:.2%}")
-
-# --- 5. DASHBOARD VISUALIZATION ---
-col1, col2 = st.columns(2)
-
-with col1:
-    st.subheader("Traffic Class Distribution")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Class', data=df, ax=ax, palette="viridis")
-    ax.set_xticklabels(['Benign', 'Malicious'])
-    st.pyplot(fig)
-
-with col2:
-    st.subheader("Feature Correlation Matrix")
-    # Select only numeric columns for correlation to avoid errors
-    numeric_df = df.select_dtypes(include=['float64', 'int64', 'int32'])
-    fig2, ax2 = plt.subplots()
-    sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', ax=ax2, fmt=".2f")
-    st.pyplot(fig2)
-
-# --- 6. LIVE SIMULATION INTERFACE ---
-st.markdown("---")
-st.header("🚦 Live Traffic Simulator")
-st.write("Input packet parameters below to test the detection engine.")
-
-# Input fields
-c1, c2, c3 = st.columns(3)
-p_dur = c1.number_input("Packet Duration", min_value=0.0, value=50.0)
-src_bytes = c2.number_input("Source Bytes", min_value=0.0, value=200.0)
-dst_bytes = c3.number_input("Dest Bytes", min_value=0.0, value=200.0)
-
-c4, c5 = st.columns(2)
-flag_rst = c4.selectbox("Flag Reset (RST)", [0, 1])
-proto = c5.selectbox("Protocol", [0, 1, 2], format_func=lambda x: {0:"TCP", 1:"UDP", 2:"ICMP"}[x])
-
-# Prediction Logic
-if st.button("Analyze Packet"):
-    if st.session_state['nids_model'].is_trained:
-        input_vector = [p_dur, src_bytes, dst_bytes, flag_rst, proto]
+    with col1:
+        st.subheader("Simulation")
+        st.write("Pick a random packet from the dataset to simulate live traffic.")
         
-        prediction = st.session_state['nids_model'].predict_packet(input_vector)
+        if st.button("🎲 Capture Random Packet"):
+            random_idx = np.random.randint(0, len(df))
+            st.session_state['selected_packet'] = df.iloc[random_idx]
         
-        if prediction == 1:
-            st.error("🚨 ALERT: Malicious Traffic Detected!")
-        else:
-            st.success("✅ Traffic is Benign.")
-    else:
-        st.warning("⚠️ Please train the model in the sidebar first.")
+        if st.session_state['selected_packet'] is not None:
+            packet = st.session_state['selected_packet']
+            st.write("### Packet Info:")
+            
+            # Prepare vertical table
+            display_df = packet.to_frame()
+            display_df.columns = ["Value"]
+            
+            # --- THE FIX IS HERE ---
+            # Removed 'height=500'. It now auto-sizes to fit the data exactly.
+            st.dataframe(display_df, use_container_width=True)
+            # -----------------------
+
+    with col2:
+        st.subheader("AI Detection Result")
+        
+        if st.session_state['selected_packet'] is not None:
+            packet = st.session_state['selected_packet']
+            ground_truth = str(packet.get('Class', 'Unknown'))
+            
+            if ground_truth.upper() in ['NORMAL', 'BENIGN', 'SAFE']:
+                st.markdown(f"""<div class="success-box"><h3>STATUS: SAFE</h3></div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(f"""<div class="danger-box"><h3>STATUS: ATTACK DETECTED</h3></div>""", unsafe_allow_html=True)
+            
+            st.caption(f"Ground Truth Label: {ground_truth}")
+
+            # --- GROQ AI SECTION ---
+            st.divider()
+            st.subheader("Ask AI Analyst (Groq)")
+            
+            if st.button("Generate Explanation"):
+                if not groq_api_key:
+                    st.error("Missing API Key in Sidebar")
+                else:
+                    client = Groq(api_key=groq_api_key)
+                    
+                    # Clean packet data
+                    packet_dict = packet.to_dict()
+                    clean_packet_str = ""
+                    for i, (key, value) in enumerate(packet_dict.items()):
+                        if i > 15: break 
+                        clean_value = str(value).encode('ascii', 'ignore').decode('ascii')
+                        clean_packet_str += f"{key}: {clean_value}, "
+                    
+                    with st.spinner("Analyzing..."):
+                        try:
+                            chat = client.chat.completions.create(
+                                messages=[
+                                    {
+                                        "role": "system", 
+                                        "content": "You are a cybersecurity analyst. Explain if this packet is safe or suspicious based on the provided network features."
+                                    },
+                                    {
+                                        "role": "user", 
+                                        "content": f"Packet Data: {clean_packet_str}"
+                                    }
+                                ],
+                                model="llama-3.3-70b-versatile"
+                            )
+                            st.info(chat.choices[0].message.content)
+                        except Exception as e:
+                            st.error(f"Error: {e}")
