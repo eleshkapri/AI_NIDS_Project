@@ -1,13 +1,3 @@
----
-title: AI NIDS Project
-emoji: 🛡️
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-sdk_version: 1.31.0
-app_file: app.py
-pinned: false
----
 # 🛡️ AI-Based Network Intrusion Detection System (AI-NIDS)
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
