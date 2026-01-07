@@ -79,8 +79,10 @@ streamlit run app.py
 ## 📸 Screenshots
 
 ### Dashboard (Real DDoS Data)
+![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/76f2e62b9ee9f8c10244148f8fb0e20068b5e04d/screenshots/Real%20DDoS%20Data.png)
 
 ### Dashboard (Demo Traffic)
+![image alt](https://github.com/eleshkapri/AI_NIDS_Project/blob/76f2e62b9ee9f8c10244148f8fb0e20068b5e04d/screenshots/Demo%20Traffic.png)
 
 ---
 
